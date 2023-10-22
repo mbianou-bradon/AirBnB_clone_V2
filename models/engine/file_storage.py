@@ -1,52 +1,80 @@
+#!/usr/bin/python3
+"""This is the file storage class for AirBnB"""
 import json
-import os
 from models.base_model import BaseModel
 from models.user import User
+from models.state import State
+from models.city import City
+from models.amenity import Amenity
+from models.place import Place
+from models.review import Review
+import shlex
 
 
 class FileStorage:
-    """Handles serialization and deserialization of instances"""
-
+    """This class serializes instances to a JSON file and
+    deserializes JSON file to instances
+    Attributes:
+        __file_path: path to the JSON file
+        __objects: objects will be stored
+    """
     __file_path = "file.json"
-    __classes = [BaseModel, User]
     __objects = {}
 
-    def all(self):
-        """Returns the dictionary __objects"""
-        return self.__objects
+    def all(self, cls=None):
+        """returns a dictionary
+        Return:
+            returns a dictionary of __object
+        """
+        dic = {}
+        if cls:
+            dictionary = self.__objects
+            for key in dictionary:
+                partition = key.replace('.', ' ')
+                partition = shlex.split(partition)
+                if (partition[0] == cls.__name__):
+                    dic[key] = self.__objects[key]
+            return (dic)
+        else:
+            return self.__objects
 
     def new(self, obj):
-        """Sets in __objects the obj with key <obj class name>.id"""
-        key = obj.__class__.__name__ + "." + obj.id
-        self.__objects[key] = obj
+        """sets __object to given obj
+        Args:
+            obj: given object
+        """
+        if obj:
+            key = "{}.{}".format(type(obj).__name__, obj.id)
+            self.__objects[key] = obj
 
     def save(self):
-        """Serializes __objects to the JSON file"""
-        serialized_objects = {}
+        """serialize the file path to JSON file path
+        """
+        my_dict = {}
         for key, value in self.__objects.items():
-            serialized_objects[key] = self._serialize_instance(value)
-
-        with open(self.__file_path, 'w') as file:
-            json.dump(serialized_objects, file)
+            my_dict[key] = value.to_dict()
+        with open(self.__file_path, 'w', encoding="UTF-8") as f:
+            json.dump(my_dict, f)
 
     def reload(self):
-        """Deserializes the JSON file to __objects"""
-        if os.path.exists(self.__file_path):
-            with open(self.__file_path, 'r') as file:
-                serialized_objects = json.load(file)
-                for key, value in serialized_objects.items():
-                    self.__objects[key] = self._deserialize_instance(value)
+        """serialize the file path to JSON file path
+        """
+        try:
+            with open(self.__file_path, 'r', encoding="UTF-8") as f:
+                for key, value in (json.load(f)).items():
+                    value = eval(value["__class__"])(**value)
+                    self.__objects[key] = value
+        except FileNotFoundError:
+            pass
 
-    def _serialize_instance(self, instance):
-        """Serialize an instance to a dictionary"""
-        serialized_instance = instance.to_dict()
-        serialized_instance['__class__'] = type(instance).__name__
-        return serialized_instance
+    def delete(self, obj=None):
+        """ delete an existing element
+        """
+        if obj:
+            key = "{}.{}".format(type(obj).__name__, obj.id)
+            del self.__objects[key]
 
-    def _deserialize_instance(self, serialized_instance):
-        """Deserialize a dictionary to an instance"""
-        class_name = serialized_instance.pop('__class__', None)
-        for cls in self.__classes:
-            if class_name == cls.__name__:
-                return cls(**serialized_instance)
-        return BaseModel(**serialized_instance)
+    def close(self):
+        """ calls reload()
+        """
+        self.reload()
